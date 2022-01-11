@@ -17,7 +17,7 @@ function debounce(fn, delay) {
 }
 
 (function () {
-  "use strict";
+  'use strict';
 
   // ATTENTION
   // When adding new symbols to this file,
@@ -43,29 +43,29 @@ function debounce(fn, delay) {
   var REACT_LEGACY_HIDDEN_TYPE = 0xeae3;
   var REACT_CACHE_TYPE = 0xeae4;
 
-  if (typeof Symbol === "function" && Symbol.for) {
+  if (typeof Symbol === 'function' && Symbol.for) {
     var symbolFor = Symbol.for;
-    REACT_ELEMENT_TYPE = symbolFor("react.element");
-    REACT_PORTAL_TYPE = symbolFor("react.portal");
-    REACT_FRAGMENT_TYPE = symbolFor("react.fragment");
-    REACT_STRICT_MODE_TYPE = symbolFor("react.strict_mode");
-    REACT_PROFILER_TYPE = symbolFor("react.profiler");
-    REACT_PROVIDER_TYPE = symbolFor("react.provider");
-    REACT_CONTEXT_TYPE = symbolFor("react.context");
-    REACT_FORWARD_REF_TYPE = symbolFor("react.forward_ref");
-    REACT_SUSPENSE_TYPE = symbolFor("react.suspense");
-    REACT_SUSPENSE_LIST_TYPE = symbolFor("react.suspense_list");
-    REACT_MEMO_TYPE = symbolFor("react.memo");
-    REACT_LAZY_TYPE = symbolFor("react.lazy");
-    REACT_SCOPE_TYPE = symbolFor("react.scope");
-    REACT_OPAQUE_ID_TYPE = symbolFor("react.opaque.id");
-    REACT_DEBUG_TRACING_MODE_TYPE = symbolFor("react.debug_trace_mode");
-    REACT_OFFSCREEN_TYPE = symbolFor("react.offscreen");
-    REACT_LEGACY_HIDDEN_TYPE = symbolFor("react.legacy_hidden");
-    REACT_CACHE_TYPE = symbolFor("react.cache");
+    REACT_ELEMENT_TYPE = symbolFor('react.element');
+    REACT_PORTAL_TYPE = symbolFor('react.portal');
+    REACT_FRAGMENT_TYPE = symbolFor('react.fragment');
+    REACT_STRICT_MODE_TYPE = symbolFor('react.strict_mode');
+    REACT_PROFILER_TYPE = symbolFor('react.profiler');
+    REACT_PROVIDER_TYPE = symbolFor('react.provider');
+    REACT_CONTEXT_TYPE = symbolFor('react.context');
+    REACT_FORWARD_REF_TYPE = symbolFor('react.forward_ref');
+    REACT_SUSPENSE_TYPE = symbolFor('react.suspense');
+    REACT_SUSPENSE_LIST_TYPE = symbolFor('react.suspense_list');
+    REACT_MEMO_TYPE = symbolFor('react.memo');
+    REACT_LAZY_TYPE = symbolFor('react.lazy');
+    REACT_SCOPE_TYPE = symbolFor('react.scope');
+    REACT_OPAQUE_ID_TYPE = symbolFor('react.opaque.id');
+    REACT_DEBUG_TRACING_MODE_TYPE = symbolFor('react.debug_trace_mode');
+    REACT_OFFSCREEN_TYPE = symbolFor('react.offscreen');
+    REACT_LEGACY_HIDDEN_TYPE = symbolFor('react.legacy_hidden');
+    REACT_CACHE_TYPE = symbolFor('react.cache');
   }
 
-  var PossiblyWeakMap = typeof WeakMap === "function" ? WeakMap : Map; // We never remove these associations.
+  var PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map; // We never remove these associations.
   // It's OK to reference families, but use WeakMap/Set for types.
 
   var allFamiliesByID = new Map();
@@ -78,6 +78,7 @@ function debounce(fn, delay) {
   // It is an array of [Family, NextType] tuples.
 
   var pendingUpdates = []; // This is injected by the renderer via DevTools global hook.
+  var globalEventsQueue = [];
 
   var helpersByRendererID = new Map();
   var helpersByRoot = new Map(); // We keep track of mounted roots so we can schedule updates.
@@ -90,7 +91,7 @@ function debounce(fn, delay) {
   // If there is no WeakMap, we won't attempt to do retrying.
   // $FlowIssue
 
-  var rootElements = typeof WeakMap === "function" ? new WeakMap() : null; // $FlowIssue
+  var rootElements = typeof WeakMap === 'function' ? new WeakMap() : null; // $FlowIssue
   var isPerformingRefresh = false;
 
   function computeFullKey(signature) {
@@ -115,7 +116,7 @@ function debounce(fn, delay) {
     for (var i = 0; i < hooks.length; i++) {
       var hook = hooks[i];
 
-      if (typeof hook !== "function") {
+      if (typeof hook !== 'function') {
         // Something's wrong. Assume we need to remount.
         signature.forceReset = true;
         signature.fullKey = fullKey;
@@ -136,7 +137,7 @@ function debounce(fn, delay) {
         signature.forceReset = true;
       }
 
-      fullKey += "\n---\n" + nestedHookKey;
+      fullKey += '\n---\n' + nestedHookKey;
     }
 
     signature.fullKey = fullKey;
@@ -180,6 +181,14 @@ function debounce(fn, delay) {
     }
 
     return false;
+  }
+
+  function subscribeGlobalUpdate(cb) {
+    globalEventsQueue.push(cb);
+  }
+
+  function emitGlobalUpdate(updates) {
+    globalEventsQueue.forEach(cb => cb(updates));
   }
 
   function resolveFamily(type) {
@@ -240,29 +249,37 @@ function debounce(fn, delay) {
         family.current = nextType; // Determine whether this should be a re-render or a re-mount.
 
         if (canPreserveStateBetween(prevType, nextType)) {
-          updatedFamilies.add([prevType, family]);
+          const callbacks = updateEventMap.get(prevType);
+          callbacks && updatedFamilies.add([callbacks, family]);
         } else {
           staleFamilies.add(family);
         }
       });
 
-      updatedFamilies.forEach(([type, family]) => {
-        const callbacks = updateEventMap.get(type);
-        callbacks && callbacks.reverse().forEach((cb) => cb(family.current));
+      if (updatedFamilies.size <= 0) {
+        // No updated families found
+        emitGlobalUpdate(updates);
+      }
+
+      updatedFamilies.forEach(([callbacks, family]) => {
+        callbacks.reverse().forEach((cb) => cb(family.current));
       });
 
-      // return update;
+    } catch (e) {
+      debugger
+
     } finally {
       isPerformingRefresh = false;
     }
   }
+
   function register(type, id) {
     {
       if (type === null) {
         return;
       }
 
-      if (typeof type !== "function" && typeof type !== "object") {
+      if (typeof type !== 'function' && typeof type !== 'object') {
         return;
       } // This can happen in an edge case, e.g. if we register
       // return value of a HOC but it returns a cached component.
@@ -287,19 +304,20 @@ function debounce(fn, delay) {
 
       allFamiliesByType.set(type, family); // Visit inner types because we might not have registered them.
 
-      if (typeof type === "object" && type !== null) {
-        switch (getProperty(type, "$$typeof")) {
+      if (typeof type === 'object' && type !== null) {
+        switch (getProperty(type, '$$typeof')) {
           case REACT_FORWARD_REF_TYPE:
-            register(type.render, id + "$render");
+            register(type.render, id + '$render');
             break;
 
           case REACT_MEMO_TYPE:
-            register(type.type, id + "$type");
+            register(type.type, id + '$type');
             break;
         }
       }
     }
   }
+
   function setSignature(type, key) {
     var forceReset =
       arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
@@ -319,8 +337,8 @@ function debounce(fn, delay) {
         });
       } // Visit inner types because we might not have signed them.
 
-      if (typeof type === "object" && type !== null) {
-        switch (getProperty(type, "$$typeof")) {
+      if (typeof type === 'object' && type !== null) {
+        switch (getProperty(type, '$$typeof')) {
           case REACT_FORWARD_REF_TYPE:
             setSignature(type.render, key, forceReset, getCustomHooks);
             break;
@@ -343,16 +361,19 @@ function debounce(fn, delay) {
       }
     }
   }
+
   function getFamilyByID(id) {
     {
       return allFamiliesByID.get(id);
     }
   }
+
   function getFamilyByType(type) {
     {
       return allFamiliesByType.get(type);
     }
   }
+
   function findAffectedHostInstances(families) {
     {
       var affectedInstances = new Set();
@@ -361,7 +382,7 @@ function debounce(fn, delay) {
 
         if (helpers === undefined) {
           throw new Error(
-            "Could not find helpers for a root. This is a bug in React Refresh."
+            'Could not find helpers for a root. This is a bug in React Refresh.'
           );
         }
 
@@ -376,7 +397,10 @@ function debounce(fn, delay) {
       return affectedInstances;
     }
   }
-  function injectIntoGlobalHook(globalObject) {}
+
+  function injectIntoGlobalHook(globalObject) {
+  }
+
   function hasUnrecoverableErrors() {
     // TODO: delete this after removing dependency in RN.
     return false;
@@ -415,21 +439,21 @@ function debounce(fn, delay) {
       var hasCustomHooks;
       var didCollectHooks = false;
       return function (type, key, forceReset, getCustomHooks) {
-        if (typeof key === "string") {
+        if (typeof key === 'string') {
           // We're in the initial phase that associates signatures
           // with the functions. Note this may be called multiple times
           // in HOC chains like _s(hoc1(_s(hoc2(_s(actualFunction))))).
           if (!savedType) {
             // We're in the innermost call, so this is the actual type.
             savedType = type;
-            hasCustomHooks = typeof getCustomHooks === "function";
+            hasCustomHooks = typeof getCustomHooks === 'function';
           } // Set the signature for all types (even wrappers!) in case
           // they have no signatures of their own. This is to prevent
           // problems like https://github.com/facebook/react/issues/20417.
 
           if (
             type != null &&
-            (typeof type === "function" || typeof type === "object")
+            (typeof type === 'function' || typeof type === 'object')
           ) {
             setSignature(type, key, forceReset, getCustomHooks);
           }
@@ -447,10 +471,11 @@ function debounce(fn, delay) {
       };
     }
   }
+
   function isLikelyComponentType(type) {
     {
       switch (typeof type) {
-        case "function": {
+        case 'function': {
           // First, deal with classes.
           if (type.prototype != null) {
             if (type.prototype.isReactComponent) {
@@ -460,7 +485,7 @@ function debounce(fn, delay) {
 
             var ownNames = Object.getOwnPropertyNames(type.prototype);
 
-            if (ownNames.length > 1 || ownNames[0] !== "constructor") {
+            if (ownNames.length > 1 || ownNames[0] !== 'constructor') {
               // This looks like a class.
               return false;
             } // eslint-disable-next-line no-proto
@@ -473,12 +498,12 @@ function debounce(fn, delay) {
           } // For plain functions and arrows, use name as a heuristic.
 
           var name = type.name || type.displayName;
-          return typeof name === "string" && /^[A-Z]/.test(name);
+          return typeof name === 'string' && /^[A-Z]/.test(name);
         }
 
-        case "object": {
+        case 'object': {
           if (type != null) {
-            switch (getProperty(type, "$$typeof")) {
+            switch (getProperty(type, '$$typeof')) {
               case REACT_FORWARD_REF_TYPE:
               case REACT_MEMO_TYPE:
                 // Definitely React components.
@@ -563,6 +588,7 @@ function debounce(fn, delay) {
   exports.isLikelyComponentType = isLikelyComponentType;
   exports.performReactRefresh = debounce(performReactRefresh, 16);
   exports.register = register;
+  exports.subscribeGlobalUpdate = subscribeGlobalUpdate;
   exports.setSignature = setSignature;
 })();
 
