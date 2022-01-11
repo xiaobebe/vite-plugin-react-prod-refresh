@@ -4,16 +4,41 @@ import { createFilter } from "@rollup/pluginutils";
 import path from "path";
 
 const runtimePublicPath = "/@react-refresh";
+const reconcilerPublicPath = "/@react-reconciler";
 
 const runtimePragma = "__viteH";
 
-const runtimeCode = fs.readFileSync(
-  path.resolve(__dirname, "../runtime.js"),
-  "utf-8"
+const runtimeFilePath = require.resolve(
+  "react-refresh/cjs/react-refresh-runtime.development.js"
 );
+
+const runtimeCode = `
+const exports = {}
+${fs.readFileSync(runtimeFilePath, "utf-8")}
+function debounce(fn, delay) {
+  let handle
+  return () => {
+    clearTimeout(handle)
+    handle = setTimeout(fn, delay)
+  }
+}
+exports.performReactRefresh = debounce(exports.performReactRefresh, 16)
+export default exports
+`;
+
+const reconcilerCode = `
+${fs.readFileSync(
+  require.resolve("react-reconciler/cjs/react-reconciler.development.js"),
+  "utf-8"
+).replace("module.exports","var exports")}
+export default exports;
+`;
 
 const preambleCode = `
 import RefreshRuntime from "__BASE__${runtimePublicPath.slice(1)}"
+import ReconcilerRuntime from "__BASE__${reconcilerPublicPath.slice(1)}"
+console.log(ReconcilerRuntime());
+debugger;
 RefreshRuntime.injectIntoGlobalHook(window)
 window.$RefreshReg$ = () => {}
 window.$RefreshSig$ = () => (type) => type
@@ -52,6 +77,9 @@ function reactRefreshPlugin(opts) {
     load(id) {
       if (id === runtimePublicPath) {
         return runtimeCode;
+      }
+      if (id === reconcilerPublicPath) {
+        return reconcilerCode;
       }
       return;
     },
@@ -183,7 +211,7 @@ function reactRefreshPlugin(opts) {
         {
           tag: "script",
           attrs: { type: "module" },
-          children: preambleCode.replace(`__BASE__`, base),
+          children: preambleCode.replaceAll(`__BASE__`, base),
         },
       ];
     },

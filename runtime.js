@@ -262,11 +262,10 @@ function debounce(fn, delay) {
       }
 
       updatedFamilies.forEach(([callbacks, family]) => {
-        callbacks.reverse().forEach((cb) => cb(family.current));
+        callbacks.forEach((cb) => cb(family.current));
       });
 
     } catch (e) {
-      debugger
 
     } finally {
       isPerformingRefresh = false;
