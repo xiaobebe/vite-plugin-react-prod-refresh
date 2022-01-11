@@ -56,7 +56,8 @@ function reactRefreshPlugin(opts) {
       return;
     },
 
-    transform(code, id, { ssr }) {
+    transform(code, id, options) {
+      const ssr = options?.ssr; 
       if (shouldSkip || ssr) {
         return;
       }
