@@ -57,7 +57,7 @@ function reactRefreshPlugin(opts) {
     },
 
     transform(code, id, options) {
-      const ssr = options?.ssr; 
+      const ssr = options?.ssr;
       if (shouldSkip || ssr) {
         return;
       }
@@ -122,10 +122,7 @@ function reactRefreshPlugin(opts) {
         sourceFileName: id,
       });
 
-      if (
-        !/\$RefreshReg\$\(/.test(result.code) &&
-        !new RegExp(runtimePragma).test(result.code)
-      ) {
+      if (!/\$RefreshReg\$\(/.test(result.code)) {
         // no component detected in the file
         return code;
       }
