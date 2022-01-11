@@ -5,7 +5,7 @@ import path from "path";
 
 const runtimePublicPath = "/@react-refresh";
 
-const runtimePragma = "viteCompJsxCreateElement";
+const runtimePragma = "__viteH";
 
 const runtimeCode = fs.readFileSync(
   path.resolve(__dirname, "../runtime.js"),
@@ -231,5 +231,6 @@ function isComponentLikeName(name) {
 }
 
 reactRefreshPlugin.preambleCode = preambleCode;
+reactRefreshPlugin.runtimePragma = runtimePragma;
 
 export default reactRefreshPlugin;
